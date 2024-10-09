@@ -1,10 +1,10 @@
 """
 title: AWS Bedrock RAG Pipeline
-author: Seu Nome
+author: Hugo
 date: 2024-10-09
-version: 1.2
+version: 1.3
 license: MIT
-description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock.
+description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime.
 requirements: boto3
 environment_variables: AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION_NAME, KNOWLEDGE_BASE_ID, BEDROCK_MODEL_ID
 """
@@ -34,9 +34,9 @@ class Pipeline:
             BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
         )
 
-        # Configuração do cliente Bedrock Runtime para RAG
-        self.bedrock_runtime = boto3.client(
-            "bedrock-runtime",
+        # Configuração do cliente Bedrock Agent Runtime para RAG
+        self.bedrock_agent_runtime = boto3.client(
+            "bedrock-agent-runtime",
             aws_access_key_id=self.valves.AWS_ACCESS_KEY,
             aws_secret_access_key=self.valves.AWS_SECRET_KEY,
             region_name=self.valves.AWS_REGION_NAME,
@@ -51,8 +51,8 @@ class Pipeline:
             return {"status": "error", "message": "Nenhuma consulta fornecida."}
 
         try:
-            # Chamada à API Retrieve-and-Generate (RAG)
-            response = self.bedrock_runtime.retrieve_and_generate(
+            # Chamada à API Retrieve-and-Generate (RAG) usando o Bedrock Agent Runtime
+            response = self.bedrock_agent_runtime.retrieve_and_generate(
                 input={"text": user_message},
                 retrieveAndGenerateConfiguration={
                     "type": "KNOWLEDGE_BASE",

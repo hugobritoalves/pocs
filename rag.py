@@ -1,105 +1,96 @@
 """
-title: AWS Bedrock RAG Pipeline
+title: Bedrock RAG Pipeline
 author: Seu Nome
 date: 2024-10-09
 version: 1.0
 license: MIT
-description: A pipeline for generating text using the AWS Bedrock Retrieve-and-Generate API (RAG) with Claude 3 Haiku.
+description: A pipeline to perform RAG with AWS Bedrock in OpenWebUI.
 requirements: boto3
-environment_variables: AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION_NAME, KNOWLEDGE_BASE_ID, BEDROCK_MODEL_ID
+environment_variables: AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION, KNOWLEDGE_BASE_ID, BEDROCK_MODEL_ID
 """
 
 import os
-import logging
-from typing import List, Union, Generator, Iterator
-
 import boto3
+import logging
+from typing import List, Union
+
 from pydantic import BaseModel
 
-from utils.pipelines.main import pop_system_message
+# Configuração de logging para facilitar a depuração
+logging.basicConfig(level=logging.INFO)
 
 class Pipeline:
     class Valves(BaseModel):
         AWS_ACCESS_KEY: str = ""
         AWS_SECRET_KEY: str = ""
-        AWS_REGION_NAME: str = ""
+        AWS_REGION: str = ""
         KNOWLEDGE_BASE_ID: str = ""
         BEDROCK_MODEL_ID: str = "anthropic.claude-v3-haiku"  # Modelo padrão
 
     def __init__(self):
-        self.type = "manifold"
-        self.name = "Bedrock RAG Pipeline"
-
+        # Carregar configurações das válvulas
         self.valves = self.Valves(
-            **{
-                "AWS_ACCESS_KEY": os.getenv("AWS_ACCESS_KEY", ""),
-                "AWS_SECRET_KEY": os.getenv("AWS_SECRET_KEY", ""),
-                "AWS_REGION_NAME": os.getenv("AWS_REGION_NAME", "us-east-1"),
-                "KNOWLEDGE_BASE_ID": os.getenv("KNOWLEDGE_BASE_ID", ""),
-                "BEDROCK_MODEL_ID": os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-v3-haiku"),
-            }
+            AWS_ACCESS_KEY=os.getenv("AWS_ACCESS_KEY", ""),
+            AWS_SECRET_KEY=os.getenv("AWS_SECRET_KEY", ""),
+            AWS_REGION=os.getenv("AWS_REGION", "us-east-1"),
+            KNOWLEDGE_BASE_ID=os.getenv("KNOWLEDGE_BASE_ID", "KIYHMVEX9V"),
+            BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
         )
 
-        self.bedrock_agent_runtime = boto3.client(
+        # Configuração do cliente Bedrock Agent Runtime usando as válvulas
+        self.client = boto3.client(
             "bedrock-agent-runtime",
             aws_access_key_id=self.valves.AWS_ACCESS_KEY,
             aws_secret_access_key=self.valves.AWS_SECRET_KEY,
-            region_name=self.valves.AWS_REGION_NAME
+            region_name=self.valves.AWS_REGION,
         )
 
-    async def on_startup(self):
-        pass
-
-    async def on_shutdown(self):
-        pass
-
-    async def on_valves_updated(self):
-        self.bedrock_agent_runtime = boto3.client(
-            "bedrock-agent-runtime",
-            aws_access_key_id=self.valves.AWS_ACCESS_KEY,
-            aws_secret_access_key=self.valves.AWS_SECRET_KEY,
-            region_name=self.valves.AWS_REGION_NAME
+        # Construir o ARN do modelo
+        self.model_arn = (
+            f"arn:aws:bedrock:{self.valves.AWS_REGION}::foundation-model/{self.valves.BEDROCK_MODEL_ID}"
         )
 
-    def pipelines(self) -> List[dict]:
-        return self.get_models()
+    async def pipe(
+        self,
+        body: dict,
+        __user__: dict = None,
+        __event_emitter__=None,
+        __event_call__=None,
+    ) -> dict:
+        # Logar o conteúdo do body para análise
+        logging.info(f"Conteúdo do body recebido: {body}")
 
-    def get_models(self):
-        # Aqui, você pode listar os modelos disponíveis se desejar
-        # Neste exemplo, retornamos apenas o modelo definido
-        return [
-            {
-                "id": self.valves.BEDROCK_MODEL_ID,
-                "name": f"Bedrock RAG Model: {self.valves.BEDROCK_MODEL_ID}",
-            },
-        ]
+        # Buscar a lista de mensagens no body
+        messages = body.get("messages", [])
 
-    def pipe(
-        self, user_message: str, model_id: str, messages: List[dict], body: dict
-    ) -> Union[str, Generator, Iterator]:
-        # Certifique-se de que o KNOWLEDGE_BASE_ID está definido
-        if not self.valves.KNOWLEDGE_BASE_ID:
-            return "Error: KNOWLEDGE_BASE_ID is not set. Please set it in the environment variables."
+        # Verificar se há mensagens e extrair a última mensagem
+        if messages:
+            query = messages[-1].get("content", "")
+        else:
+            query = ""
 
-        # Obtenha a mensagem do usuário
-        system_message, messages = pop_system_message(messages)
-        logging.info(f"pop_system_message: {messages}")
+        # Verificar se a consulta foi fornecida
+        if not query:
+            logging.error("Nenhuma consulta fornecida.")
+            return {"status": "error", "message": "Nenhuma consulta fornecida."}
 
-        # Construir a entrada para o retrieve_and_generate
-        query = user_message
+        # Realizar a chamada ao Bedrock
         try:
-            response = self.bedrock_agent_runtime.retrieve_and_generate(
-                input={'text': query},
+            response = self.client.retrieve_and_generate(
+                input={"text": query},
                 retrieveAndGenerateConfiguration={
-                    'type': 'KNOWLEDGE_BASE',
-                    'knowledgeBaseConfiguration': {
-                        'knowledgeBaseId': self.valves.KNOWLEDGE_BASE_ID,
-                        'modelArn': f'arn:aws:bedrock:{self.valves.AWS_REGION_NAME}::foundation-model/{self.valves.BEDROCK_MODEL_ID}'
-                    }
+                    "type": "KNOWLEDGE_BASE",
+                    "knowledgeBaseConfiguration": {
+                        "knowledgeBaseId": self.valves.KNOWLEDGE_BASE_ID,
+                        "modelArn": self.model_arn,
+                    },
                 },
             )
-            generated_text = response['output']['text']
-            return generated_text
+            generated_text = response["output"]["text"]
+            # Adicionar a resposta às mensagens
+            body["messages"].append({"role": "assistant", "content": generated_text})
+            # Retornar o body atualizado
+            return body
         except Exception as e:
-            logging.error(f"Error in retrieve_and_generate: {e}")
-            return f"Error: {e}"
+            logging.error(f"Erro ao processar a consulta: {e}")
+            return {"status": "error", "message": str(e)}

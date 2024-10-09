@@ -25,7 +25,7 @@ class Pipeline:
         AWS_SECRET_KEY: str = ""
         AWS_REGION: str = ""
         KNOWLEDGE_BASE_ID: str = ""
-        BEDROCK_MODEL_ID: str = "anthropic.claude-v3-haiku"  # Modelo padrão
+        BEDROCK_MODEL_ID: str = "anthropic.claude-3-haiku-20240307-v1:0"  # Modelo padrão
 
     def __init__(self):
         # Carregar configurações das válvulas
@@ -52,32 +52,26 @@ class Pipeline:
 
     async def pipe(
         self,
-        body: dict,
+        user_message: str,  # Novo parâmetro adicionado para a mensagem do usuário
+        model_id: str = None,
+        messages: List[dict] = None,
+        body: dict = None,
         __user__: dict = None,
         __event_emitter__=None,
         __event_call__=None,
     ) -> dict:
-        # Logar o conteúdo do body para análise
-        logging.info(f"Conteúdo do body recebido: {body}")
+        # Logar o conteúdo recebido para análise
+        logging.info(f"Conteúdo recebido: {body}, user_message: {user_message}")
 
-        # Buscar a lista de mensagens no body
-        messages = body.get("messages", [])
-
-        # Verificar se há mensagens e extrair a última mensagem
-        if messages:
-            query = messages[-1].get("content", "")
-        else:
-            query = ""
-
-        # Verificar se a consulta foi fornecida
-        if not query:
+        # Verificar se a mensagem do usuário está presente
+        if not user_message:
             logging.error("Nenhuma consulta fornecida.")
             return {"status": "error", "message": "Nenhuma consulta fornecida."}
 
         # Realizar a chamada ao Bedrock
         try:
             response = self.client.retrieve_and_generate(
-                input={"text": query},
+                input={"text": user_message},
                 retrieveAndGenerateConfiguration={
                     "type": "KNOWLEDGE_BASE",
                     "knowledgeBaseConfiguration": {
@@ -94,3 +88,4 @@ class Pipeline:
         except Exception as e:
             logging.error(f"Erro ao processar a consulta: {e}")
             return {"status": "error", "message": str(e)}
+

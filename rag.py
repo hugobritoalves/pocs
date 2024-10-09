@@ -2,7 +2,7 @@
 title: Bedrock RAG Pipeline
 author: Seu Nome
 date: 2024-10-09
-version: 1.0
+version: 1.1
 license: MIT
 description: A pipeline to perform RAG with AWS Bedrock in OpenWebUI.
 requirements: boto3

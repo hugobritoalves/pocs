@@ -1,8 +1,8 @@
 """
 title: AWS Bedrock RAG Pipeline
-author: Seu Nome
+author: Hugo
 date: 2024-10-09
-version: 1.0
+version: 1.7
 license: MIT
 description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime.
 requirements: boto3
@@ -68,7 +68,7 @@ class Pipeline:
                 }
             }
 
-            # Chamada direta para obter o texto completo
+            # Forçar a chamada direta sem streaming, ignorando o campo 'stream'
             return self.get_completion(model_id, payload)
 
         except Exception as e:
@@ -77,15 +77,12 @@ class Pipeline:
 
     def get_completion(self, model_id: str, payload: dict) -> str:
         try:
-            # Fazendo a chamada ao Bedrock Agent Runtime
+            # Fazendo a chamada ao Bedrock Agent Runtime sem streaming
             response = self.bedrock_agent_runtime.retrieve_and_generate(**payload)
 
-            # Verificando a resposta e extraindo o texto gerado
-            return {
-                "role": "assistant",
-                "content": response['output']['text']
-            }
+            # Retornar apenas o texto gerado pelo modelo
+            return response['output']['text']
 
         except Exception as e:
             logging.error(f"Erro ao obter a resposta: {e}")
-            return {"status": "error", "message": str(e)}
+            return f"Error: {e}"

@@ -1,10 +1,10 @@
 """
 title: AWS Bedrock RAG Pipeline
-author: Hugo
+author: Seu Nome
 date: 2024-10-09
-version: 1.5
+version: 1.6
 license: MIT
-description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with Claude 3 Haiku, including stream response.
+description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime.
 requirements: boto3
 environment_variables: AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION_NAME, KNOWLEDGE_BASE_ID, BEDROCK_MODEL_ID
 """
@@ -12,7 +12,7 @@ environment_variables: AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION_NAME, KNOWLEDG
 import logging
 import os
 import boto3
-from typing import List, Union, Generator, Iterator
+from typing import List, Union
 from pydantic import BaseModel
 
 # Importando função auxiliar para pop de system message
@@ -46,7 +46,7 @@ class Pipeline:
 
     def pipe(
         self, user_message: str, model_id: str, messages: List[dict], body: dict
-    ) -> Union[str, Generator, Iterator]:
+    ) -> Union[str, dict]:
         # Verificar se a consulta do usuário foi fornecida
         if not user_message:
             logging.error("Nenhuma consulta fornecida.")
@@ -68,37 +68,18 @@ class Pipeline:
                 }
             }
 
-            # Verificar se o body contém a chave para stream
-            if body.get("stream", False):
-                # Se stream estiver ativado, processar resposta via stream
-                return self.stream_response(payload)
-            else:
-                # Caso contrário, chamada direta para obter o texto completo
-                return self.get_completion(payload)
+            # Chamada direta para obter o texto completo
+            return self.get_completion(payload)
 
         except Exception as e:
             logging.error(f"Erro ao processar a consulta RAG: {e}")
             return {"status": "error", "message": str(e)}
 
-    def stream_response(self, payload: dict) -> Generator:
-        try:
-            # Chamando API com suporte a streaming
-            streaming_response = self.bedrock_agent_runtime.retrieve_and_generate_stream(**payload)
-            for chunk in streaming_response["stream"]:
-                if "contentBlockDelta" in chunk:
-                    # Retornar os pedaços da resposta à medida que são gerados
-                    yield chunk["contentBlockDelta"]["delta"]["text"]
-
-        except Exception as e:
-            logging.error(f"Erro no streaming: {e}")
-            yield f"Error: {e}"
-
     def get_completion(self, payload: dict) -> str:
         try:
             # Chamada regular para obter a resposta completa
             response = self.bedrock_agent_runtime.retrieve_and_generate(**payload)
-            return response['output']['text']
-
+            return {"role": "assistant", "content": response['output']['text']}
         except Exception as e:
             logging.error(f"Erro ao obter a resposta: {e}")
-            return f"Error: {e}"
+            return {"status": "error", "message": str(e)}

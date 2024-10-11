@@ -2,7 +2,7 @@
 title: AWS Bedrock RAG Pipeline
 author: Hugo
 date: 2024-10-09
-version: 2.1
+version: 2.2
 license: MIT
 description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with additional parameters.
 requirements: boto3
@@ -31,17 +31,17 @@ class Pipeline:
 
     def __init__(self):
         # Nome da pipeline
-        self.name = "Code 2.1"  # Nome personalizado
+        self.name = "Code 2.2"  # Nome personalizado
 
         # Configuração das válvulas e credenciais
         self.valves = self.Valves(
-            AWS_ACCESS_KEY=os.getenv("AWS_ACCESS_KEY", ""),
-            AWS_SECRET_KEY=os.getenv("AWS_SECRET_KEY", ""),
-            AWS_REGION_NAME=os.getenv("AWS_REGION_NAME", "us-east-1"),
-            KNOWLEDGE_BASE_ID=os.getenv("KNOWLEDGE_BASE_ID", ""),
-            BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-2"),
-            DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 3)),
-            DEFAULT_PROMPT_TEMPLATE=os.getenv("DEFAULT_PROMPT_TEMPLATE", ""),
+            AWS_ACCESS_KEY=os.getenv("AWS_ACCESS_KEY", "") or "",
+            AWS_SECRET_KEY=os.getenv("AWS_SECRET_KEY", "") or "",
+            AWS_REGION_NAME=os.getenv("AWS_REGION_NAME", "us-east-1") or "us-east-1",
+            KNOWLEDGE_BASE_ID=os.getenv("KNOWLEDGE_BASE_ID", "") or "",
+            BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-2") or "anthropic.claude-2",
+            DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 3) or 3),
+            DEFAULT_PROMPT_TEMPLATE=os.getenv("DEFAULT_PROMPT_TEMPLATE", "") or "",
         )
 
         # Configurando cliente do Bedrock Agent Runtime
@@ -80,32 +80,33 @@ class Pipeline:
 
         # Construir o payload para o Retrieve-and-Generate
         try:
+            # Iniciar o knowledgeBaseConfiguration sem o generationConfiguration
+            knowledge_base_config = {
+                "knowledgeBaseId": self.valves.KNOWLEDGE_BASE_ID,
+                "modelArn": f"arn:aws:bedrock:{self.valves.AWS_REGION_NAME}::foundation-model/{self.valves.BEDROCK_MODEL_ID}",
+                "retrievalConfiguration": {
+                    "vectorSearchConfiguration": {
+                        "numberOfResults": number_of_results,
+                    }
+                },
+            }
+
+            # Incluir generationConfiguration se houver promptTemplate
+            if prompt_template:
+                knowledge_base_config["generationConfiguration"] = {
+                    "promptTemplate": {
+                        "textPromptTemplate": prompt_template
+                    }
+                }
+
             payload = {
                 "input": {"text": user_message},
                 "retrieveAndGenerateConfiguration": {
                     "type": "KNOWLEDGE_BASE",
-                    "knowledgeBaseConfiguration": {
-                        "knowledgeBaseId": self.valves.KNOWLEDGE_BASE_ID,
-                        "modelArn": f"arn:aws:bedrock:{self.valves.AWS_REGION_NAME}::foundation-model/{self.valves.BEDROCK_MODEL_ID}",
-                        "generationConfiguration": {},
-                        "retrievalConfiguration": {
-                            "vectorSearchConfiguration": {
-                                "numberOfResults": number_of_results,
-                            }
-                        },
-                    }
+                    "knowledgeBaseConfiguration": knowledge_base_config
                 },
                 "sessionId": session_id,
             }
-
-            # Incluir promptTemplate apenas se ele não for vazio
-            if prompt_template:
-                payload["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"]["promptTemplate"] = {
-                    "textPromptTemplate": prompt_template
-                }
-            else:
-                # Remover 'generationConfiguration' se estiver vazio
-                del payload["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"]
 
             # Chamada direta para obter o texto completo
             return self.get_completion(payload)
@@ -116,6 +117,10 @@ class Pipeline:
 
     def get_completion(self, payload: dict) -> str:
         try:
+            # Opcional: Imprimir o payload para depuração
+            # import json
+            # print(json.dumps(payload, indent=2))
+
             # Fazendo a chamada ao Bedrock Agent Runtime
             response = self.bedrock_agent_runtime.retrieve_and_generate(**payload)
 

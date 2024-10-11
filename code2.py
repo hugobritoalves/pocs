@@ -2,9 +2,9 @@
 title: AWS Bedrock RAG Pipeline
 author: Hugo
 date: 2024-10-09
-version: 3.3
+version: 3.4
 license: MIT
-description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with session handling, returning the generated text.
+description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with session handling.
 requirements: boto3
 environment_variables: AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION_NAME, KNOWLEDGE_BASE_ID, BEDROCK_MODEL_ID
 """
@@ -15,7 +15,7 @@ import boto3
 from typing import List, Union, Generator, Iterator
 from pydantic import BaseModel
 
-# Importing auxiliary function to pop system message
+# Importando função auxiliar para pop de system message
 from utils.pipelines.main import pop_system_message
 
 class Pipeline:
@@ -24,26 +24,26 @@ class Pipeline:
         AWS_SECRET_KEY: str = ""
         AWS_REGION_NAME: str = "us-east-1"
         KNOWLEDGE_BASE_ID: str = ""
-        BEDROCK_MODEL_ID: str = "anthropic.claude-3"  # Default model
-        DEFAULT_NUMBER_OF_RESULTS: int = 3  # Default number of results
-        DEFAULT_PROMPT_TEMPLATE: str = ""  # Default prompt template
+        BEDROCK_MODEL_ID: str = "anthropic.claude-3-haiku-20240307-v1:0"  # Modelo padrão
+        DEFAULT_NUMBER_OF_RESULTS: int = 3  # Número padrão de resultados
+        DEFAULT_PROMPT_TEMPLATE: str = ""  # Template de prompt padrão
 
     def __init__(self):
-        # Pipeline name
-        self.name = "Code 3.3"  # Updated name
+        # Nome da pipeline
+        self.name = "Code 3.4"  # Nome atualizado
 
-        # Valve configuration and credentials
+        # Configuração das válvulas e credenciais
         self.valves = self.Valves(
             AWS_ACCESS_KEY=os.getenv("AWS_ACCESS_KEY", ""),
             AWS_SECRET_KEY=os.getenv("AWS_SECRET_KEY", ""),
             AWS_REGION_NAME=os.getenv("AWS_REGION_NAME", "us-east-1"),
             KNOWLEDGE_BASE_ID=os.getenv("KNOWLEDGE_BASE_ID", ""),
-            BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3"),
+            BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
             DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 3)),
             DEFAULT_PROMPT_TEMPLATE=os.getenv("DEFAULT_PROMPT_TEMPLATE", ""),
         )
 
-        # Configuring Bedrock Agent Runtime client
+        # Configurando cliente do Bedrock Agent Runtime
         self.bedrock_agent_runtime = boto3.client(
             "bedrock-agent-runtime",
             aws_access_key_id=self.valves.AWS_ACCESS_KEY,
@@ -51,7 +51,7 @@ class Pipeline:
             region_name=self.valves.AWS_REGION_NAME,
         )
 
-        # Instance variable to store session ID
+        # Variável de instância para armazenar o sessionId
         self.session_id = None
 
     def pipe(
@@ -60,70 +60,76 @@ class Pipeline:
         __event_emitter__=None,
         __event_call__=None,
     ) -> Union[str, Generator, Iterator]:
-        # Verify if user query is provided
+        # Verificar se a consulta do usuário foi fornecida
         if not user_message:
-            logging.error("No query provided.")
-            return "No query provided."
+            logging.error("Nenhuma consulta fornecida.")
+            return "Nenhuma consulta fornecida."
 
-        # Pop system message to adjust context
+        # Pop de system message para ajustar o contexto
         system_message, messages = pop_system_message(messages)
 
-        # Get numberOfResults from body or use default
+        # Obter numberOfResults do body ou usar o padrão
         number_of_results = body.get("numberOfResults", self.valves.DEFAULT_NUMBER_OF_RESULTS)
 
-        # Get promptTemplate from body or use default
+        # Obter promptTemplate do body ou usar o padrão
         prompt_template = body.get("promptTemplate", self.valves.DEFAULT_PROMPT_TEMPLATE)
 
-        # Check if we already have a sessionId in the instance
+        # Verificar se já temos um sessionId na instância
         if not self.session_id:
-            # Check if sessionId is provided in the body
+            # Verificar se o sessionId é fornecido no body
             self.session_id = body.get("sessionId")
 
-        # Build the payload for Retrieve-and-Generate
+        # Construir o payload para Retrieve-and-Generate
         try:
             payload = {
-                "inputText": user_message,
-                "knowledgeBaseId": self.valves.KNOWLEDGE_BASE_ID,
+                "input": {"text": user_message},
+                "retrieveAndGenerateConfiguration": {
+                    "type": "KNOWLEDGE_BASE",
+                    "knowledgeBaseConfiguration": {
+                        "knowledgeBaseId": self.valves.KNOWLEDGE_BASE_ID,
+                        "modelArn": f"arn:aws:bedrock:{self.valves.AWS_REGION_NAME}::foundation-model/{self.valves.BEDROCK_MODEL_ID}",
+                        "retrievalConfiguration": {
+                            "vectorSearchConfiguration": {
+                                "numberOfResults": number_of_results,
+                            }
+                        }
+                    }
+                }
             }
 
-            # Include sessionId in the payload if it exists
+            # Incluir o sessionId no payload, se ele existir
             if self.session_id:
                 payload["sessionId"] = self.session_id
 
-            # Include promptTemplate if provided
+            # Incluir promptTemplate se fornecido
             if prompt_template:
-                payload["textGenerationConfig"] = {
-                    "prompt": prompt_template
+                payload["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"] = {
+                    "promptTemplate": {
+                        "textPromptTemplate": prompt_template
+                    }
                 }
 
-            # Include retrieval configuration
-            payload["retrievalConfig"] = {
-                "numberOfResults": number_of_results,
-            }
-
-            # Make the direct call to get the complete text
-            generated_text = self.get_completion(payload)
-
-            return generated_text
+            # Chamada direta para obter o texto completo
+            return self.get_completion(payload)
 
         except Exception as e:
-            logging.error(f"Error processing RAG query: {e}")
-            return f"Error: {e}"
+            logging.error(f"Erro ao processar a consulta RAG: {e}")
+            return f"Erro: {e}"
 
     def get_completion(self, payload: dict) -> str:
         try:
-            # Make the call to Bedrock Agent Runtime
-            response = self.bedrock_agent_runtime.generate_text(**payload)
+            # Fazendo a chamada ao Bedrock Agent Runtime
+            response = self.bedrock_agent_runtime.retrieve_and_generate(**payload)
 
-            # Extract the sessionId generated or existing
+            # Extrair o sessionId gerado ou existente
             self.session_id = response.get('sessionId', self.session_id)
 
-                  # Verificar se a resposta contém o campo "output" e "text"
+            # Verificar se a resposta contém o campo "output" e "text"
             if 'output' in response and 'text' in response['output']:
                 return response['output']['text']
             else:
                 return "Nenhuma resposta gerada ou campo 'text' ausente."
 
         except Exception as e:
-            logging.error(f"Error getting response: {e}")
-            return f"Error: {e}"
+            logging.error(f"Erro ao obter a resposta: {e}")
+            return f"Erro: {e}"

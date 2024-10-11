@@ -26,10 +26,10 @@ class Pipeline:
         KNOWLEDGE_BASE_ID: str = ""
         BEDROCK_MODEL_ID: str = "anthropic.claude-3-haiku-20240307-v1:0"  # Modelo padrão
 
-    # Nome da pipeline
-    self.name = "RAG Codigo"  # Nome personalizado
-    
     def __init__(self):
+        # Nome da pipeline
+        self.name = "AWS Bedrock RAG Pipeline"  # Nome personalizado
+        
         # Configuração das válvulas e credenciais
         self.valves = self.Valves(
             AWS_ACCESS_KEY=os.getenv("AWS_ACCESS_KEY", ""),

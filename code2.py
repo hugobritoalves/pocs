@@ -2,7 +2,7 @@
 title: AWS Bedrock RAG Pipeline
 author: Hugo
 date: 2024-10-09
-version: 1.9
+version: 2.1
 license: MIT
 description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with additional parameters.
 requirements: boto3
@@ -31,7 +31,7 @@ class Pipeline:
 
     def __init__(self):
         # Nome da pipeline
-        self.name = "Code 2"  # Nome personalizado
+        self.name = "Code 2.1"  # Nome personalizado
 
         # Configuração das válvulas e credenciais
         self.valves = self.Valves(

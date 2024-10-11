@@ -41,7 +41,7 @@ class Pipeline:
             KNOWLEDGE_BASE_ID=os.getenv("KNOWLEDGE_BASE_ID", ""),
             BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-2"),
             DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 3)),
-            DEFAULT_PROMPT_TEMPLATE=os.getenv("DEFAULT_PROMPT_TEMPLATE", ""),
+            DEFAULT_PROMPT_TEMPLATE=os.getenv("DEFAULT_PROMPT_TEMPLATE", "") or "",
         )
 
         # Configurando cliente do Bedrock Agent Runtime

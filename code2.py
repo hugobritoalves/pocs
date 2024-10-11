@@ -2,7 +2,7 @@
 title: AWS Bedrock RAG Pipeline
 author: Hugo
 date: 2024-10-09
-version: 3.2
+version: 3.3
 license: MIT
 description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with session handling, returning the generated text.
 requirements: boto3
@@ -30,7 +30,7 @@ class Pipeline:
 
     def __init__(self):
         # Pipeline name
-        self.name = "Code 3.2"  # Updated name
+        self.name = "Code 3.3"  # Updated name
 
         # Valve configuration and credentials
         self.valves = self.Valves(
@@ -45,7 +45,7 @@ class Pipeline:
 
         # Configuring Bedrock Agent Runtime client
         self.bedrock_agent_runtime = boto3.client(
-            "bedrock-runtime",
+            "bedrock-agent-runtime",
             aws_access_key_id=self.valves.AWS_ACCESS_KEY,
             aws_secret_access_key=self.valves.AWS_SECRET_KEY,
             region_name=self.valves.AWS_REGION_NAME,

@@ -2,9 +2,9 @@
 title: AWS Bedrock RAG Pipeline
 author: Hugo
 date: 2024-10-09
-version: 2.8
+version: 3.0
 license: MIT
-description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with session handling.
+description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with session handling, returning both generated text and sessionId.
 requirements: boto3
 environment_variables: AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION_NAME, KNOWLEDGE_BASE_ID, BEDROCK_MODEL_ID
 """
@@ -25,12 +25,12 @@ class Pipeline:
         AWS_REGION_NAME: str = ""
         KNOWLEDGE_BASE_ID: str = ""
         BEDROCK_MODEL_ID: str = "anthropic.claude-3-haiku-20240307-v1:0"  # Modelo padrão
-        DEFAULT_NUMBER_OF_RESULTS: int = 3  # Número padrão de resultados
+        DEFAULT_NUMBER_OF_RESULTS: int = 5  # Número padrão de resultados
         DEFAULT_PROMPT_TEMPLATE: str = ""  # Template de prompt padrão
 
     def __init__(self):
         # Nome da pipeline
-        self.name = "Code 2.8"  # Nome personalizado
+        self.name = "Ulife Code 3.0"  # Nome atualizado
 
         # Configuração das válvulas e credenciais
         self.valves = self.Valves(
@@ -39,13 +39,13 @@ class Pipeline:
             AWS_REGION_NAME=os.getenv("AWS_REGION_NAME", "us-east-1") or "us-east-1",
             KNOWLEDGE_BASE_ID=os.getenv("KNOWLEDGE_BASE_ID", "") or "",
             BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0") or "anthropic.claude-3-haiku-20240307-v1:0",
-            DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 3) or 3),
+            DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 5) or 5),
             DEFAULT_PROMPT_TEMPLATE=os.getenv("DEFAULT_PROMPT_TEMPLATE", "") or "",
         )
 
         # Configurando cliente do Bedrock Agent Runtime
         self.bedrock_agent_runtime = boto3.client(
-            "bedrock-agent-runtime",
+            "bedrock-runtime",
             aws_access_key_id=self.valves.AWS_ACCESS_KEY,
             aws_secret_access_key=self.valves.AWS_SECRET_KEY,
             region_name=self.valves.AWS_REGION_NAME,
@@ -96,16 +96,19 @@ class Pipeline:
                 }
 
             payload = {
-                "input": {"text": user_message},
-                "retrieveAndGenerateConfiguration": {
-                    "type": "KNOWLEDGE_BASE",
-                    "knowledgeBaseConfiguration": knowledge_base_config
-                },
+                "inputText": user_message,
+                "knowledgeBaseId": self.valves.KNOWLEDGE_BASE_ID,
             }
 
             # Incluir o sessionId no payload se ele já existir
             if session_id:
                 payload["sessionId"] = session_id
+
+            # Incluir promptTemplate se houver
+            if prompt_template:
+                payload["textGenerationConfig"] = {
+                    "prompt": prompt_template
+                }
 
             # Chamada direta para obter o texto completo
             return self.get_completion(payload)
@@ -114,17 +117,26 @@ class Pipeline:
             logging.error(f"Erro ao processar a consulta RAG: {e}")
             return {"status": "error", "message": str(e)}
 
-    def get_completion(self, payload: dict) -> str:
+    def get_completion(self, payload: dict) -> dict:
         try:
             # Fazendo a chamada ao Bedrock Agent Runtime
-            response = self.bedrock_agent_runtime.retrieve_and_generate(**payload)
+            response = self.bedrock_agent_runtime.generate_text(**payload)
 
-            # Verificar se a resposta contém o campo "output" e "text"
-            if 'output' in response and 'text' in response['output']:
-                return response['output']['text']
+            # Extrair o sessionId gerado ou existente
+            session_id = response.get('sessionId', None)
+
+            # Verificar se a resposta contém o campo "results"
+            if 'results' in response and len(response['results']) > 0:
+                generated_text = response['results'][0]['outputText']
             else:
-                return "Nenhuma resposta gerada ou campo 'text' ausente."
+                generated_text = "Nenhuma resposta gerada ou campo 'outputText' ausente."
+
+            # Retornar o texto gerado e o sessionId
+            return {
+                "generated_text": generated_text,
+                "sessionId": session_id,
+            }
 
         except Exception as e:
             logging.error(f"Erro ao obter a resposta: {e}")
-            return f"Error: {e}"
+            return {"status": "error", "message": str(e)}

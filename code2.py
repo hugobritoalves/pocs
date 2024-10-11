@@ -2,7 +2,7 @@
 title: AWS Bedrock RAG Pipeline
 author: Hugo
 date: 2024-10-09
-version: 2.7
+version: 2.8
 license: MIT
 description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with session handling.
 requirements: boto3
@@ -24,13 +24,13 @@ class Pipeline:
         AWS_SECRET_KEY: str = ""
         AWS_REGION_NAME: str = ""
         KNOWLEDGE_BASE_ID: str = ""
-        BEDROCK_MODEL_ID: str = "anthropic.claude-2"  # Modelo padrão
+        BEDROCK_MODEL_ID: str = "anthropic.claude-3-haiku-20240307-v1:0"  # Modelo padrão
         DEFAULT_NUMBER_OF_RESULTS: int = 3  # Número padrão de resultados
         DEFAULT_PROMPT_TEMPLATE: str = ""  # Template de prompt padrão
 
     def __init__(self):
         # Nome da pipeline
-        self.name = "Code 2.7"  # Nome personalizado
+        self.name = "Code 2.8"  # Nome personalizado
 
         # Configuração das válvulas e credenciais
         self.valves = self.Valves(
@@ -38,7 +38,7 @@ class Pipeline:
             AWS_SECRET_KEY=os.getenv("AWS_SECRET_KEY", "") or "",
             AWS_REGION_NAME=os.getenv("AWS_REGION_NAME", "us-east-1") or "us-east-1",
             KNOWLEDGE_BASE_ID=os.getenv("KNOWLEDGE_BASE_ID", "") or "",
-            BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-2") or "anthropic.claude-2",
+            BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0") or "anthropic.claude-3-haiku-20240307-v1:0",
             DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 3) or 3),
             DEFAULT_PROMPT_TEMPLATE=os.getenv("DEFAULT_PROMPT_TEMPLATE", "") or "",
         )
@@ -114,25 +114,17 @@ class Pipeline:
             logging.error(f"Erro ao processar a consulta RAG: {e}")
             return {"status": "error", "message": str(e)}
 
-    def get_completion(self, payload: dict) -> dict:
+    def get_completion(self, payload: dict) -> str:
         try:
             # Fazendo a chamada ao Bedrock Agent Runtime
             response = self.bedrock_agent_runtime.retrieve_and_generate(**payload)
 
             # Verificar se a resposta contém o campo "output" e "text"
             if 'output' in response and 'text' in response['output']:
-                generated_text = response['output']['text']
+                return response['output']['text']
             else:
-                generated_text = "Nenhuma resposta gerada ou campo 'text' ausente."
-
-            # Extrair o sessionId gerado na primeira requisição
-            session_id = response.get('sessionId', None)
-
-            return {
-                "generated_text": generated_text,
-                "sessionId": session_id,  # Retornar o sessionId para ser reutilizado
-            }
+                return "Nenhuma resposta gerada ou campo 'text' ausente."
 
         except Exception as e:
             logging.error(f"Erro ao obter a resposta: {e}")
-            return {"status": "error", "message": str(e)}
+            return f"Error: {e}"

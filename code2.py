@@ -31,7 +31,7 @@ class Pipeline:
 
     def __init__(self):
         # Nome da pipeline
-        self.name = "Ulife Code"  # Nome personalizado
+        self.name = "Ulife Code 2"  # Nome personalizado
 
         # Configuração das válvulas e credenciais
         self.valves = self.Valves(

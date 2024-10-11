@@ -2,9 +2,9 @@
 title: AWS Bedrock RAG Pipeline
 author: Hugo
 date: 2024-10-09
-version: 2.2
+version: 2.3
 license: MIT
-description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with additional parameters.
+description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with session handling.
 requirements: boto3
 environment_variables: AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION_NAME, KNOWLEDGE_BASE_ID, BEDROCK_MODEL_ID
 """
@@ -12,7 +12,6 @@ environment_variables: AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION_NAME, KNOWLEDG
 import logging
 import os
 import boto3
-import uuid
 from typing import List, Union
 from pydantic import BaseModel
 
@@ -31,7 +30,7 @@ class Pipeline:
 
     def __init__(self):
         # Nome da pipeline
-        self.name = "Code 2.2"  # Nome personalizado
+        self.name = "Code 2.3"  # Nome personalizado
 
         # Configuração das válvulas e credenciais
         self.valves = self.Valves(
@@ -66,17 +65,14 @@ class Pipeline:
         # Pop de system message para ajustar o contexto
         system_message, messages = pop_system_message(messages)
 
-        # Recuperar sessionId do body ou gerar um novo
-        session_id = body.get("sessionId")
-        if not session_id:
-            # Gerar um sessionId único
-            session_id = str(uuid.uuid4())
-
         # Obter numberOfResults do body ou usar o padrão
         number_of_results = body.get("numberOfResults", self.valves.DEFAULT_NUMBER_OF_RESULTS)
 
         # Obter promptTemplate do body ou usar o padrão
         prompt_template = body.get("promptTemplate", self.valves.DEFAULT_PROMPT_TEMPLATE)
+
+        # Verificar se já temos um sessionId do body
+        session_id = body.get("sessionId")
 
         # Construir o payload para o Retrieve-and-Generate
         try:
@@ -105,8 +101,11 @@ class Pipeline:
                     "type": "KNOWLEDGE_BASE",
                     "knowledgeBaseConfiguration": knowledge_base_config
                 },
-                "sessionId": session_id,
             }
+
+            # Incluir o sessionId no payload se ele já existir
+            if session_id:
+                payload["sessionId"] = session_id
 
             # Chamada direta para obter o texto completo
             return self.get_completion(payload)
@@ -115,23 +114,28 @@ class Pipeline:
             logging.error(f"Erro ao processar a consulta RAG: {e}")
             return {"status": "error", "message": str(e)}
 
-    def get_completion(self, payload: dict) -> str:
+    def get_completion(self, payload: dict) -> dict:
         try:
-            # Opcional: Imprimir o payload para depuração
-            # import json
-            # print(json.dumps(payload, indent=2))
-
             # Fazendo a chamada ao Bedrock Agent Runtime
             response = self.bedrock_agent_runtime.retrieve_and_generate(**payload)
+
+            # Extrair o sessionId gerado na primeira requisição
+            session_id = response.get('sessionId', None)
 
             # Extrair o texto gerado da resposta
             candidates = response.get('candidates', [])
             if candidates:
                 generated_text = candidates[0]['output']['message']['content'][0]['text']
-                return generated_text
+                return {
+                    "generated_text": generated_text,
+                    "sessionId": session_id,  # Retornar o sessionId para ser reutilizado
+                }
             else:
-                return "Nenhuma resposta foi gerada."
+                return {
+                    "generated_text": "Nenhuma resposta foi gerada.",
+                    "sessionId": session_id,
+                }
 
         except Exception as e:
             logging.error(f"Erro ao obter a resposta: {e}")
-            return f"Error: {e}"
+            return {"status": "error", "message": str(e)}

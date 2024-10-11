@@ -26,8 +26,8 @@ class Pipeline:
         KNOWLEDGE_BASE_ID: str = ""
         BEDROCK_MODEL_ID: str = "anthropic.claude-3-haiku-20240307-v1:0"  # Modelo padrão
 
-      # Definir o nome da pipeline
-    PIPELINE_NAME: str = "Ulife Code"
+    # Nome da pipeline
+    self.name = "RAG Codigo"  # Nome personalizado
     
     def __init__(self):
         # Configuração das válvulas e credenciais

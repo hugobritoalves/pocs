@@ -41,7 +41,7 @@ class Pipeline:
             KNOWLEDGE_BASE_ID=os.getenv("KNOWLEDGE_BASE_ID", ""),
             BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-2"),
             DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 3)),
-            DEFAULT_PROMPT_TEMPLATE=os.getenv("DEFAULT_PROMPT_TEMPLATE", "") or "",
+            DEFAULT_PROMPT_TEMPLATE=os.getenv("DEFAULT_PROMPT_TEMPLATE", ""),
         )
 
         # Configurando cliente do Bedrock Agent Runtime
@@ -98,11 +98,14 @@ class Pipeline:
                 "sessionId": session_id,
             }
 
-            # Incluir promptTemplate se fornecido
+            # Incluir promptTemplate apenas se ele não for vazio
             if prompt_template:
                 payload["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"]["promptTemplate"] = {
                     "textPromptTemplate": prompt_template
                 }
+            else:
+                # Remover 'generationConfiguration' se estiver vazio
+                del payload["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"]
 
             # Chamada direta para obter o texto completo
             return self.get_completion(payload)

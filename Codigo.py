@@ -28,7 +28,7 @@ class Pipeline:
 
     def __init__(self):
         # Nome da pipeline
-        self.name = "AWS Bedrock RAG Pipeline"  # Nome personalizado
+        self.name = "Ulife Code"  # Nome personalizado
         
         # Configuração das válvulas e credenciais
         self.valves = self.Valves(

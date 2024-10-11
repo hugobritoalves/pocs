@@ -2,7 +2,7 @@
 title: AWS Bedrock RAG Pipeline
 author: Hugo
 date: 2024-10-09
-version: 3.1
+version: 3.2
 license: MIT
 description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with session handling, returning the generated text.
 requirements: boto3
@@ -30,7 +30,7 @@ class Pipeline:
 
     def __init__(self):
         # Pipeline name
-        self.name = "Code 3.1"  # Updated name
+        self.name = "Code 3.2"  # Updated name
 
         # Valve configuration and credentials
         self.valves = self.Valves(
@@ -118,12 +118,11 @@ class Pipeline:
             # Extract the sessionId generated or existing
             self.session_id = response.get('sessionId', self.session_id)
 
-            # Check if the response contains the "results" field
-            if 'results' in response and len(response['results']) > 0:
-                generated_text = response['results'][0]['outputText']
-                return generated_text
+                  # Verificar se a resposta contém o campo "output" e "text"
+            if 'output' in response and 'text' in response['output']:
+                return response['output']['text']
             else:
-                return "No response generated or 'outputText' field missing."
+                return "Nenhuma resposta gerada ou campo 'text' ausente."
 
         except Exception as e:
             logging.error(f"Error getting response: {e}")

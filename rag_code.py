@@ -25,12 +25,12 @@ class Pipeline:
         AWS_REGION_NAME: str = ""
         KNOWLEDGE_BASE_ID: str = ""
         BEDROCK_MODEL_ID: str = "anthropic.claude-3-haiku-20240307-v1:0"  # Modelo padrão
-        DEFAULT_NUMBER_OF_RESULTS: int = 5  # Número padrão de resultados
+        DEFAULT_NUMBER_OF_RESULTS: int = 10  # Número padrão de resultados
         DEFAULT_PROMPT_TEMPLATE: str = ""  # Template de prompt padrão
 
     def __init__(self):
         # Nome da pipeline
-        self.name = "Ulife Code 2"  # Nome personalizado
+        self.name = "Ulife Copilot"  # Nome personalizado
         
         # Configuração das válvulas e credenciais
         self.valves = self.Valves(
@@ -39,8 +39,17 @@ class Pipeline:
             AWS_REGION_NAME=os.getenv("AWS_REGION_NAME", "us-east-1"),
             KNOWLEDGE_BASE_ID=os.getenv("KNOWLEDGE_BASE_ID", ""),
             BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
-            DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 5)),
-            DEFAULT_PROMPT_TEMPLATE=os.getenv("DEFAULT_PROMPT_TEMPLATE", ""),
+            DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 10)),
+            DEFAULT_PROMPT_TEMPLATE = os.getenv("DEFAULT_PROMPT_TEMPLATE", 
+                """Você é um especialista em responder perguntas baseando-se em resultados de pesquisa fornecidos. 
+                O usuário fornecerá uma pergunta, e sua tarefa é responder a essa pergunta usando exclusivamente as informações contidas nos resultados de pesquisa abaixo. 
+                Resuma as informações mais relevantes para garantir que o usuário tenha uma compreensão clara e completa. 
+                Se a resposta não estiver presente nos resultados da pesquisa, informe que a informação não está disponível. 
+                Forneça a resposta no idioma solicitado pelo usuário. Sempre dê a resposta em português.
+            
+                Resultados da Pesquisa: <context> $search_results$ </context>
+                Pergunta do Usuário: <question> $query$ </question>"""
+            ),
         )
 
         # Configurando cliente do Bedrock Agent Runtime

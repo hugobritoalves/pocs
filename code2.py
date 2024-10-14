@@ -97,10 +97,6 @@ class Pipeline:
                     }
                 }
 
-            # Incluir sessionId se existir
-            if self.session_id:
-                payload["sessionId"] = self.session_id
-
             # Chamada para obter o texto completo
             return self.get_completion(model_id, payload)
 
@@ -112,9 +108,6 @@ class Pipeline:
         try:
             # Fazendo a chamada ao Bedrock Agent Runtime
             response = self.bedrock_agent_runtime.retrieve_and_generate(**payload)
-
-            # Extrair o sessionId gerado ou existente
-            self.session_id = response.get('sessionId', self.session_id)
 
             # Retornar apenas o texto gerado pelo modelo
             return response['output']['text']

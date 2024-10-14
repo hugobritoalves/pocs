@@ -29,8 +29,9 @@ class Pipeline:
         DEFAULT_PROMPT_TEMPLATE: str = ""  # Template de prompt padrão
 
     def __init__(self):
+
         # Nome da pipeline
-        self.name = "Ulife Copilot"  # Nome personalizado
+        self.name = os.path.basename(__file__)  # Nome personalizado
         
         # Configuração das válvulas e credenciais
         self.valves = self.Valves(

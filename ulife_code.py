@@ -24,7 +24,7 @@ class Pipeline:
         AWS_SECRET_KEY: str = ""
         AWS_REGION_NAME: str = ""
         KNOWLEDGE_BASE_ID: str = ""
-        BEDROCK_MODEL_ID: str = "meta.llama3-2-11b-instruct-v1:0"  # Modelo padrão
+        BEDROCK_MODEL_ID: str = "anthropic.claude-3-haiku-20240307-v1:0"  # Modelo padrão
         DEFAULT_NUMBER_OF_RESULTS: int = 10  # Número padrão de resultados
         DEFAULT_PROMPT_TEMPLATE: str = ""  # Template de prompt padrão
 
@@ -39,7 +39,7 @@ class Pipeline:
             AWS_SECRET_KEY=os.getenv("AWS_SECRET_KEY", ""),
             AWS_REGION_NAME=os.getenv("AWS_REGION_NAME", "us-east-1"),
             KNOWLEDGE_BASE_ID=os.getenv("KNOWLEDGE_BASE_ID", ""),
-            BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "meta.llama3-2-11b-instruct-v1:0"),
+            BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
             DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 10)),
             DEFAULT_PROMPT_TEMPLATE = os.getenv("DEFAULT_PROMPT_TEMPLATE", 
                 """Você é um especialista em responder perguntas baseando-se em resultados de pesquisa fornecidos. 

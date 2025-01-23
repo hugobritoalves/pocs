@@ -53,7 +53,8 @@ class Pipeline:
 
     async def on_shutdown(self):
         print(f"on_shutdown:{__name__}")
-        self.langfuse.flush()
+        if self.langfuse:
+            self.langfuse.flush()
 
     async def on_valves_updated(self):
         self.set_langfuse()
@@ -66,91 +67,97 @@ class Pipeline:
                 host=self.valves.host,
                 debug=False,
             )
-            self.langfuse.auth_check()
+            if self.langfuse:
+                self.langfuse.auth_check()
         except UnauthorizedError:
-            print(
-                "Langfuse credentials incorrect. Please re-enter your Langfuse credentials in the pipeline settings."
-            )
+            print("Langfuse credentials incorrect. Please check your credentials.")
         except Exception as e:
-            print(f"Langfuse error: {e} Please re-enter your Langfuse credentials in the pipeline settings.")
+            print(f"Langfuse error: {str(e)}")
 
     async def inlet(self, body: dict, user: Optional[dict] = None) -> dict:
         print(f"inlet:{__name__}")
-        print(f"Received body: {body}")
-        print(f"User: {user}")
-
-        # Check for presence of required keys and generate chat_id if missing
-        if "chat_id" not in body:
-            unique_id = f"SYSTEM MESSAGE {uuid.uuid4()}"
-            body["chat_id"] = unique_id
-            print(f"chat_id was missing, set to: {unique_id}")
-
-        required_keys = ["model", "messages"]
-        missing_keys = [key for key in required_keys if key not in body]
         
-        if missing_keys:
-            error_message = f"Error: Missing keys in the request body: {', '.join(missing_keys)}"
-            print(error_message)
-            raise ValueError(error_message)
+        # Remover chat_id do payload antes de processar
+        langfuse_chat_id = body.pop("chat_id", f"webui-{uuid.uuid4()}")  # ← Correção crítica aqui
+        
+        # Validação dos campos obrigatórios
+        required_keys = ["model", "messages"]
+        if missing := [key for key in required_keys if key not in body]:
+            raise ValueError(f"Missing keys: {', '.join(missing)}")
 
-        trace = self.langfuse.trace(
-            name=f"filter:{__name__}",
-            input=body,
-            user_id=user["email"],
-            metadata={"user_name": user["name"], "user_id": user["id"]},
-            session_id=body["chat_id"],
-        )
+        try:
+            # Criação do trace com session_id próprio
+            trace = self.langfuse.trace(
+                name="openwebui-chat",
+                input=body,
+                user_id=user.get("email", "anonymous"),
+                metadata={
+                    "user_name": user.get("name", "unknown"),
+                    "user_id": user.get("id", "unknown")
+                },
+                session_id=langfuse_chat_id  # Usa ID gerado/removido
+            )
 
-        generation = trace.generation(
-            name=body["chat_id"],
-            model=body["model"],
-            input=body["messages"],
-            metadata={"interface": "open-webui"},
-        )
+            # Criação da generation
+            generation = trace.generation(
+                name=body["model"],
+                model=body["model"],
+                input=body["messages"],
+                metadata={
+                    "interface": "open-webui",
+                    "webui_chat_id": langfuse_chat_id  # Mantém referência interna
+                }
+            )
 
-        self.chat_traces[body["chat_id"]] = trace
-        self.chat_generations[body["chat_id"]] = generation
+            # Armazena referências
+            self.chat_traces[langfuse_chat_id] = trace
+            self.chat_generations[langfuse_chat_id] = generation
+
+        except Exception as e:
+            print(f"Langfuse tracking error: {str(e)}")
 
         return body
 
     async def outlet(self, body: dict, user: Optional[dict] = None) -> dict:
         print(f"outlet:{__name__}")
-        print(f"Received body: {body}")
-        if body["chat_id"] not in self.chat_generations or body["chat_id"] not in self.chat_traces:
+        
+        # Extrai o chat_id interno do WebUI
+        langfuse_chat_id = f"webui-{body.get('chat_id', 'unknown')}"  # Não existe mais no body
+        
+        if langfuse_chat_id not in self.chat_generations:
             return body
 
-        trace = self.chat_traces[body["chat_id"]]
-        generation = self.chat_generations[body["chat_id"]]
-        assistant_message = get_last_assistant_message(body["messages"])
+        try:
+            trace = self.chat_traces[langfuse_chat_id]
+            generation = self.chat_generations[langfuse_chat_id]
+            
+            # Processa mensagem do assistente
+            assistant_message = get_last_assistant_message(body["messages"])
+            assistant_message_obj = get_last_assistant_message_obj(body["messages"])
+            
+            # Coleta métricas de uso
+            usage = None
+            if assistant_message_obj and isinstance(assistant_message_obj.get("info"), dict):
+                info = assistant_message_obj["info"]
+                usage = {
+                    "input": info.get("prompt_eval_count") or info.get("prompt_tokens"),
+                    "output": info.get("eval_count") or info.get("completion_tokens"),
+                    "unit": "TOKENS"
+                }
 
-        
-        # Extract usage information for models that support it
-        usage = None
-        assistant_message_obj = get_last_assistant_message_obj(body["messages"])
-        if assistant_message_obj:
-            info = assistant_message_obj.get("info", {})
-            if isinstance(info, dict):
-                input_tokens = info.get("prompt_eval_count") or info.get("prompt_tokens")
-                output_tokens = info.get("eval_count") or info.get("completion_tokens")
-                if input_tokens is not None and output_tokens is not None:
-                    usage = {
-                        "input": input_tokens,
-                        "output": output_tokens,
-                        "unit": "TOKENS",
-                    }
+            # Atualiza registros no Langfuse
+            trace.update(output=assistant_message)
+            generation.end(
+                output=assistant_message,
+                usage=usage,
+                metadata={"status": "completed"}
+            )
 
-        # Update generation
-        trace.update(
-            output=assistant_message,
-        )
-        generation.end(
-            output=assistant_message,
-            metadata={"interface": "open-webui"},
-            usage=usage,
-        )
-
-        # Clean up the chat_generations dictionary
-        del self.chat_traces[body["chat_id"]]
-        del self.chat_generations[body["chat_id"]]
+        except Exception as e:
+            print(f"Langfuse update error: {str(e)}")
+        finally:
+            # Limpa registros
+            self.chat_traces.pop(langfuse_chat_id, None)
+            self.chat_generations.pop(langfuse_chat_id, None)
 
         return body

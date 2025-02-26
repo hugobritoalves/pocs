@@ -43,7 +43,7 @@ Pergunta do Usuário: <question> $query$ </question>"""
 
         self.bedrock_agent_runtime = boto3.client(
             "bedrock-agent-runtime",
-            AWS_ACCESS_KEY_ANIMA_id=self.valves.AWS_ACCESS_KEY_ANIMA,
+            aws_access_key_id=self.valves.AWS_ACCESS_KEY_ANIMA,
             aws_secret_access_key=self.valves.AWS_SECRET_KEY_ANIMA,
             region_name=self.valves.AWS_REGION_NAME_ANIMA,
         )

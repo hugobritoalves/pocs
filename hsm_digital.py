@@ -1,95 +1,75 @@
-"""
-title: AWS Bedrock RAG Pipeline
-author: Hugo
-date: 2024-10-09
-version: 2.1
-license: MIT
-description: A pipeline for performing Retrieve-and-Generate (RAG) using AWS Bedrock Agent Runtime with additional parameters.
-requirements: boto3
-environment_variables: AWS_ACCESS_KEY, AWS_SECRET_KEY, AWS_REGION_NAME, KNOWLEDGE_BASE_ID, BEDROCK_MODEL_ID
-"""
-
 import logging
 import os
 import boto3
 from typing import List, Union
 from pydantic import BaseModel
 
+import json
+
 # Importando função auxiliar para pop de system message
 from utils.pipelines.main import pop_system_message
 
 class Pipeline:
     class Valves(BaseModel):
-        AWS_ACCESS_KEY: str = ""
-        AWS_SECRET_KEY: str = ""
-        AWS_REGION_NAME: str = ""
-        KNOWLEDGE_BASE_ID: str = ""
-        BEDROCK_MODEL_ID: str = "anthropic.claude-3-haiku-20240307-v1:0"  # Modelo padrão
-        DEFAULT_NUMBER_OF_RESULTS: int = 10  # Número padrão de resultados
-        DEFAULT_PROMPT_TEMPLATE: str = ""  # Template de prompt padrão
+        AWS_ACCESS_KEY_ANIMA: str = ""
+        AWS_SECRET_KEY_ANIMA: str = ""
+        AWS_REGION_NAME_ANIMA: str = ""
+        KNOWLEDGE_BASE_ID_HSM: str = ""
+        BEDROCK_MODEL_ID_HSM: str = "amazon.nova-lite-v1:0" 
+        DEFAULT_PROMPT_TEMPLATE_HSM: int = 10            
+        DEFAULT_PROMPT_TEMPLATE_HSM: str = ""              
 
     def __init__(self):
-
-        # Nome da pipeline
-        self.name = os.path.basename(__file__)  # Nome personalizado
-        
-        # Configuração das válvulas e credenciais
+        self.name = os.path.basename(__file__)
         self.valves = self.Valves(
-            AWS_ACCESS_KEY=os.getenv("AWS_ACCESS_KEY", ""),
-            AWS_SECRET_KEY=os.getenv("AWS_SECRET_KEY", ""),
-            AWS_REGION_NAME=os.getenv("AWS_REGION_NAME", "us-east-1"),
-            KNOWLEDGE_BASE_ID=os.getenv("KNOWLEDGE_BASE_HSM", ""),
-            BEDROCK_MODEL_ID=os.getenv("BEDROCK_MODEL_ID", "amazon.nova-micro-v1:0"),
-            DEFAULT_NUMBER_OF_RESULTS=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS", 10)),
-            DEFAULT_PROMPT_TEMPLATE = os.getenv("DEFAULT_PROMPT_TEMPLATE", 
+            AWS_ACCESS_KEY_ANIMA="",
+            AWS_SECRET_KEY_ANIMA="",
+            AWS_REGION_NAME_ANIMA="us-east-1",
+            KNOWLEDGE_BASE_ID_HSM="H7PPA3VAXF",
+            BEDROCK_MODEL_ID_HSM="amazon.nova-lite-v1:0",
+            DEFAULT_PROMPT_TEMPLATE_HSM=int(os.getenv("DEFAULT_PROMPT_TEMPLATE_HSM", 10)),
+            DEFAULT_PROMPT_TEMPLATE_HSM=os.getenv(
+                "DEFAULT_PROMPT_TEMPLATE_HSM",
                 """Você é um especialista em responder perguntas baseando-se em resultados de pesquisa fornecidos. 
-                O usuário fornecerá uma pergunta, e sua tarefa é responder a essa pergunta usando exclusivamente as informações contidas nos resultados de pesquisa abaixo. 
-                Resuma as informações mais relevantes para garantir que o usuário tenha uma compreensão clara e completa. 
-                Se a resposta não estiver presente nos resultados da pesquisa, informe que a informação não está disponível. 
-                Forneça a resposta no idioma solicitado pelo usuário. Sempre dê a resposta em português.
-            
-                Resultados da Pesquisa: <context> $search_results$ </context>
-                Pergunta do Usuário: <question> $query$ </question>"""
+O usuário fornecerá uma pergunta, e sua tarefa é responder a essa pergunta usando exclusivamente as informações contidas nos resultados de pesquisa abaixo. 
+Resuma as informações mais relevantes para garantir que o usuário tenha uma compreensão clara e completa. 
+Se a resposta não estiver presente nos resultados da pesquisa, informe que a informação não está disponível. 
+Forneça a resposta no idioma solicitado pelo usuário. Sempre dê a resposta em português.
+
+Resultados da Pesquisa: <context> $search_results$ </context>
+Pergunta do Usuário: <question> $query$ </question>"""
             ),
         )
 
-        # Configurando cliente do Bedrock Agent Runtime
         self.bedrock_agent_runtime = boto3.client(
             "bedrock-agent-runtime",
-            aws_access_key_id=self.valves.AWS_ACCESS_KEY,
-            aws_secret_access_key=self.valves.AWS_SECRET_KEY,
-            region_name=self.valves.AWS_REGION_NAME,
+            AWS_ACCESS_KEY_ANIMA_id=self.valves.AWS_ACCESS_KEY_ANIMA,
+            aws_secret_access_key=self.valves.AWS_SECRET_KEY_ANIMA,
+            region_name=self.valves.AWS_REGION_NAME_ANIMA,
         )
 
-        # Inicializar session_id
         self.session_id = None
 
     def pipe(
         self, user_message: str, model_id: str, messages: List[dict], body: dict
     ) -> Union[str, dict]:
-        # Verificar se a consulta do usuário foi fornecida
         if not user_message:
             logging.error("Nenhuma consulta fornecida.")
-            return {"status": "error", "message": "Nenhuma consulta fornecida."}
+            return json.dumps({"status": "error", "message": "Nenhuma consulta fornecida."})
 
-        # Pop de system message para ajustar o contexto
         system_message, messages = pop_system_message(messages)
 
         try:
-            # Obter numberOfResults do body ou usar o padrão
-            number_of_results = body.get("numberOfResults", self.valves.DEFAULT_NUMBER_OF_RESULTS)
+            number_of_results = body.get("numberOfResults", self.valves.DEFAULT_PROMPT_TEMPLATE_HSM)
+            prompt_template = body.get("promptTemplate", self.valves.DEFAULT_PROMPT_TEMPLATE_HSM)
 
-            # Obter promptTemplate do body ou usar o padrão
-            prompt_template = body.get("promptTemplate", self.valves.DEFAULT_PROMPT_TEMPLATE)
-
-            # Construir o payload para o Retrieve-and-Generate
             payload = {
                 "input": {"text": user_message},
                 "retrieveAndGenerateConfiguration": {
                     "type": "KNOWLEDGE_BASE",
                     "knowledgeBaseConfiguration": {
-                        "knowledgeBaseId": self.valves.KNOWLEDGE_BASE_ID,
-                        "modelArn": f"arn:aws:bedrock:{self.valves.AWS_REGION_NAME}::foundation-model/{self.valves.BEDROCK_MODEL_ID}",
+                        "knowledgeBaseId": self.valves.KNOWLEDGE_BASE_ID_HSM,
+                        "modelArn": f"arn:aws:bedrock:{self.valves.AWS_REGION_NAME_ANIMA}::foundation-model/{self.valves.BEDROCK_MODEL_ID_HSM}",
                         "retrievalConfiguration": {
                             "vectorSearchConfiguration": {
                                 "numberOfResults": number_of_results,
@@ -99,7 +79,6 @@ class Pipeline:
                 }
             }
 
-            # Incluir promptTemplate se fornecido
             if prompt_template:
                 payload["retrieveAndGenerateConfiguration"]["knowledgeBaseConfiguration"]["generationConfiguration"] = {
                     "promptTemplate": {
@@ -107,21 +86,25 @@ class Pipeline:
                     }
                 }
 
-            # Chamada para obter o texto completo
             return self.get_completion(model_id, payload)
-
         except Exception as e:
             logging.error(f"Erro ao processar a consulta RAG: {e}")
-            return {"status": "error", "message": str(e)}
+            return json.dumps({"status": "error", "message": str(e)})
 
     def get_completion(self, model_id: str, payload: dict) -> str:
         try:
-            # Fazendo a chamada ao Bedrock Agent Runtime
             response = self.bedrock_agent_runtime.retrieve_and_generate(**payload)
-
-            # Retornar apenas o texto gerado pelo modelo
-            return response['output']['text']
-
+            output_text = response['output']['text']
+            citations = response.get("citations", [])
+            retrieved_references = []
+            for citation in citations:
+                retrieved_references.extend(citation.get("retrievedReferences", []))
+            # Se houver referências, cria um texto com elas; caso contrário, retorna apenas o output_text.
+            if retrieved_references:
+                references_text = "\nReferências:\n" + "\n".join(str(ref) for ref in retrieved_references)
+            else:
+                references_text = ""
+            return output_text + references_text
         except Exception as e:
             logging.error(f"Erro ao obter a resposta: {e}")
             return f"Error: {e}"

@@ -22,9 +22,9 @@ class Pipeline:
     def __init__(self):
         self.name = os.path.basename(__file__)
         self.valves = self.Valves(
-            AWS_ACCESS_KEY_ANIMA="",
-            AWS_SECRET_KEY_ANIMA="",
-            AWS_REGION_NAME_ANIMA="us-east-1",
+            AWS_ACCESS_KEY_ANIMA=os.getenv("AWS_ACCESS_KEY_ANIMA"),
+            AWS_SECRET_KEY_ANIMA=os.getenv("AWS_SECRET_KEY_ANIMA"),
+            AWS_REGION_NAME_ANIMA=os.getenv("AWS_SECRET_KEY_REGION,"us-east-1"),
             KNOWLEDGE_BASE_ID_HSM="H7PPA3VAXF",
             BEDROCK_MODEL_ID_HSM="amazon.nova-lite-v1:0",
             DEFAULT_PROMPT_TEMPLATE_HSM=int(os.getenv("DEFAULT_PROMPT_TEMPLATE_HSM", 10)),

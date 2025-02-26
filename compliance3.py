@@ -24,7 +24,7 @@ class Pipeline:
         self.valves = self.Valves(
             AWS_ACCESS_KEY_ANIMA=os.getenv("AWS_ACCESS_KEY_ANIMA"),
             AWS_SECRET_KEY_ANIMA=os.getenv("AWS_SECRET_KEY_ANIMA"),
-            AWS_REGION_NAME_ANIMA=os.getenv("AWS_SECRET_KEY_REGION,"us-east-1"),
+            AWS_REGION_NAME_ANIMA=os.getenv("AWS_SECRET_KEY_REGION","us-east-1"),
             KNOWLEDGE_BASE_C3="XANPHABEXM",
             BEDROCK_MODEL_ID_C3="amazon.nova-lite-v1:0",
             DEFAULT_NUMBER_OF_RESULTS_C3=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS_C3", 10)),

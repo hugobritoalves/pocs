@@ -14,7 +14,7 @@ class Pipeline:
         AWS_ACCESS_KEY_ANIMA: str = ""
         AWS_SECRET_KEY_ANIMA: str = ""
         AWS_REGION_NAME_ANIMA: str = ""
-        KNOWLEDGE_BASE_W2: str = "ITHFWZRFDI"
+        KNOWLEDGE_BASE_W2: str = ""
         BEDROCK_MODEL_ID_W2: str = "amazon.nova-lite-v1:0"  
         DEFAULT_NUMBER_OF_RESULTS_W2: int = 10            
         DEFAULT_PROMPT_TEMPLATE_W2: str = ""              
@@ -25,7 +25,7 @@ class Pipeline:
             AWS_ACCESS_KEY_ANIMA=os.getenv("AWS_ACCESS_KEY_ANIMA"),
             AWS_SECRET_KEY_ANIMA=os.getenv("AWS_SECRET_KEY_ANIMA"),
             AWS_REGION_NAME_ANIMA=os.getenv("AWS_SECRET_KEY_REGION","us-east-1"),
-            KNOWLEDGE_BASE_W2="XANPHABEXM",
+            KNOWLEDGE_BASE_W2="ITHFWZRFDI",
             BEDROCK_MODEL_ID_W2="amazon.nova-lite-v1:0",
             DEFAULT_NUMBER_OF_RESULTS_W2=int(os.getenv("DEFAULT_NUMBER_OF_RESULTS_W2", 10)),
             DEFAULT_PROMPT_TEMPLATE_W2=os.getenv(

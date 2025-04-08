@@ -32,7 +32,7 @@ class Pipeline:
         ANIMA_API_BASE_URL: str = Field(description="") 
 
     def __init__(self):
-        self.name = "observatorio2" # Nome atualizado ----------------------------------------------------------------------------------
+        self.name = "weduka2" # Nome atualizado ----------------------------------------------------------------------------------
         try:
             anima_api_base_url_env = os.getenv("ANIMA_URL_1")
             if not anima_api_base_url_env:

@@ -18,7 +18,7 @@ except ImportError:
         return None, messages
 
 # --- Template Padrão (Instruções Base) ---
-DEFAULT_PROMPT_TEMPLATE_ANIMA_MODIFICADO = """Você é um assistente de IA. Sua função principal é responder perguntas usando APENAS informações recuperadas de uma base de conhecimento interna. Siga estas regras de conversa RIGOROSAMENTE:
+DEFAULT_PROMPT_TEMPLATE_ANIMA = """Você é um assistente de IA. Sua função principal é responder perguntas usando APENAS informações recuperadas de uma base de conhecimento interna. Siga estas regras de conversa RIGOROSAMENTE:
 
 **ETAPA 1: VERIFICAR INFORMAÇÕES DO USUÁRIO**
 Antes de qualquer outra coisa, analise o histórico da conversa. O usuário já informou claramente qual é o seu **Tipo de Vínculo** E qual é a sua **IES (Instituição de Ensino Superior)**?

@@ -50,7 +50,7 @@ class Pipeline:
         # Nomes dos campos EXATAMENTE como devem ser referenciados
         ANIMA_API_KEY: str = Field(default="ANIMA_IA")
         ANIMA_MODEL_NAME: str = Field(default="PessoasCulturaESG")
-        ID_KNOWLEDGE_BASE: str = Field(default="SC35OARR8D")
+        ID_KNOWLEDGE_BASE: str = Field(default="KSETSXIHN4")
         ID_BEDROCK_MODEL: str = Field(default="amazon.nova-pro-v1:0")
         ANIMA_API_TIMEOUT: int = Field(default=60, gt=0, description="Timeout em segundos para a chamada da API Anima.")
         PROMPT_TEMPLATE_ANIMA: str = Field(default=DEFAULT_PROMPT_TEMPLATE_ANIMA, description="Template base do prompt do sistema.")
